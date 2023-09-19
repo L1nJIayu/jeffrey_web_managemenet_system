@@ -19,15 +19,15 @@ const seq = new Sequelize({
 })
 
 
-testConnectDatabase()
+// testConnectDatabase()
 // 连接测试
-async function testConnectDatabase() {
+;(async () => {
   try {
     await seq.authenticate()
     console.log('数据库连接成功！')
   } catch (err) {
     console.error('数据库连接失败！', err)
   }
-}
+})();
 
 module.exports = seq

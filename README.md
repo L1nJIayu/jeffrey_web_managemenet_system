@@ -36,6 +36,12 @@ dotenv.config()	// 执行后会自动找到项目根目录的.env文件加载，
 module.exports = process.env	// 导出配置，方便使用时直接解构获取配置
 ```
 
+`.env`
+
+```
+SERVER_PORT=21213	# 服务端口
+```
+
 ### 项目初始化
 
 ```js
@@ -176,7 +182,6 @@ fileList.forEach(filename => {
         router.use(require(`./${ filename }`))
     }
 })
-
 
 module.exports = router.routes()
 ```
@@ -360,11 +365,154 @@ module.exports = new UserController()
 pnpm i sequelize mariadb
 ```
 
+### 连接数据库
+
+要连接到数据库，必须创建一个`Sequelize`实例
+
+`./src/db/seq.js`
+
+```js
+const { Sequelize } = require('sequelize')
+
+const {
+  DB_HOST,
+  DB_PORT,
+  DB_DATABASE,
+  DB_USERNAME,
+  DB_PWD,
+  DB_DIALECT,
+} = require('../config/default.config')
+
+const seq = new Sequelize({
+  host: DB_HOST,
+  port: DB_PORT,
+  database: DB_DATABASE,
+  username: DB_USERNAME,
+  password: DB_PWD,
+  dialect: DB_DIALECT
+})
+
+// 测试连接
+testConnectDatabase()
+async function testConnectDatabase() {
+  try {
+    await seq.authenticate()
+    console.log('数据库连接成功！')
+  } catch (err) {
+    console.error('数据库连接失败！', err)
+  }
+}
+
+module.exports = seq
+```
+
+`.env`
+
+```
+# 服务端口
+SERVER_PORT=21213
+
+# 数据库配置信息
+DB_HOST=192.168.0.111
+DB_PORT=3306
+DB_DATABASE=my_db
+DB_USERNAME=root
+DB_PWD=123456
+DB_DIALECT=mariadb
+```
+
+使用`seq.authenticate()`可测试数据库是否连接成功，它会返回一个Promise。
+
+## 六、模型 Model
+
+`模型`与`数据表`对应，例如我们有一张用户表`t_user`，即可对应创建一个用户模型`User`，在模型中定义每个字段的类型、约束等信息。
+
+在`sequelize`中，定义模型有两种方法：
+
+- 调用`sequelize.define(modelName, attributes, options)`
+- 扩展`Model`并调用`init(attributes, options)`
+
+### 定义
+
+`./src/model/user.model.js`
+
+```js
+const seq = require('../db/seq')
+const { DataTypes } = require('sequelize')
+
+// define函数的第一个参数是模型名称的定义
+// 如果没用在options中定义表名，则会根据模型名称生成对应的复数形式作为表名。
+const User = seq.define('user', {
+  user_name: {
+    type: DataTypes.CHAR(64),
+    allowNull: false,
+    unique: true,
+    comment: '用户名'
+  },
+  password: {
+    type: DataTypes.CHAR(255),
+    allowNull: false,
+    comment: '密码'
+  },
+  nick_name: {
+    type: DataTypes.CHAR(64),
+    comment: '昵称'
+  },
+  is_deleted: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0,
+    comment: '是否被删除: 0:未删除 1:已删除'
+  },
+}, {
+    tableName: 't_user'	// 定义表明
+})
+
+// 同步数据表
+User.sync({
+    alert: true
+})
+
+module.exports = User
+```
+
+调用`User.sync()`后，`数据库`就会生成与`模型`对应的`数据表`，如果没用做其他定义，会自动补充`id`、`createAt`、`updateAt`三个字段。
 
 
 
+### 使用
+
+有了模型以后，我们就可以在`service`层开始操作数据库了
+
+#### 1.创建
+
+`./src/service/user.service.js`
+
+```js
+const User = require('../model/user.model')
+
+class UserService {
+    async createUser(params) {
+        const user = await User.create(params)
+        console.log(JSON.stringify(user, null, 4))
+        return user
+    }
+}
+
+module.exports = new UserService()
+```
+
+> `Model.create()`方法是使用`Model.build()`构建未保存实例，并使用`Model.save()`保存实例的简写形式.
+>
+> ```js
+> const user = User.build({ name: "Jeffrey" });
+> await user.save();
+> ```
+
+#### 2.其他操作
+
+关于其他操作，具体可直接看[官方文档](https://www.sequelize.cn/core-concepts/model-querying-basics)。
 
 
 
-
-
+## 七、中间件

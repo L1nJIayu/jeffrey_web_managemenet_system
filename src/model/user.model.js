@@ -28,9 +28,8 @@ const User = seq.define('User', {
   tableName: 't_user'
 })
 
-User.sync({
-  // force: true,
-  alter: true
-})
+// User.sync({
+//   force: true,
+// })
 
 module.exports = User
