@@ -1,5 +1,5 @@
 const UserService = require('../service/user.service')
-const { RES_CODE_SUCCESS, RES_CODE_ERROR } = require('../config/default.config')
+const { RES_CODE_SUCCESS, RES_CODE_ERROR } = require('../constants')
 
 class UserController {
   async register(ctx, next) {
