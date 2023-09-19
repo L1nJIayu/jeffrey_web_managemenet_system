@@ -21,10 +21,7 @@ class UserService {
           ['nick_name', 'nickName'],
           ['is_deleted', 'isDeleted'],
           ['createdAt', 'createTime']
-        ],
-        where: {
-          [Op.like]: `%${params.userName}%`
-        }
+        ]
       })
       console.log(JSON.stringify(result, null, 4))
       return result
