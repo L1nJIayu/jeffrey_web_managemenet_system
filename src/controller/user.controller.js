@@ -1,25 +1,28 @@
 const UserService = require('../service/user.service')
 const { RES_CODE_SUCCESS, RES_CODE_ERROR } = require('../constants')
+const { Service_Error } = require('../constants/error.type')
+const { getResponseBody } = require('../utils')
 
 class UserController {
-  async register(ctx, next) {
+
+  async register(ctx) {
     try {
       await UserService.createUser(ctx.request.body)
-      ctx.body = {
+      ctx.body = getResponseBody({
         code: RES_CODE_SUCCESS,
-        data: ctx.request.body,
+        result: ctx.request.body,
         message: '恭喜！用户注册成功！'
-      }
-    } catch (err) {
-      console.error(err)
-      ctx.body = {
-        code: RES_CODE_ERROR,
-        data: null,
-        message: '用户注册失败' + err
-      }
+      })
+    } catch (error) {
+      ctx.app.emit('error', {
+        responseBody: getResponseBody(Service_Error),
+        ctx,
+        error
+      })
     }
   }
-  login(ctx, next) {
+
+  async login(ctx) {
     ctx.body = {
       code: 2000,
       data: null,
@@ -28,7 +31,7 @@ class UserController {
   }
 
   // 获取用户列表
-  async getUserList(ctx, next) {
+  async getUserList(ctx) {
     try {
       console.log(ctx.query)
       const result = await UserService.getUserList(ctx.query)
@@ -39,6 +42,16 @@ class UserController {
         message: '查询成功'
       }
     } catch (err) {
+      return Promise.reject(err)
+    }
+  }
+
+  // 获取用户信息
+  async getUserByUserName(user_name) {
+    try {
+      return await UserService.getUserByUserName(user_name)
+    } catch (err) {
+      console.error(err)
       return Promise.reject(err)
     }
   }

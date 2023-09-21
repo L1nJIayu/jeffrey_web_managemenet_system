@@ -516,3 +516,143 @@ module.exports = new UserService()
 
 
 ## 七、中间件
+
+​	在控制层`controller`中，可以添加一些请求验证的逻辑，例如`用户注册`，需要在调用`service`之前，先对用户请求的参数做验证，判断其是否为空、用户名是否已存在等。
+
+​	但如果把这些验证逻辑全部写在`controller`中，代码会显得很繁杂，最好的办法就是用`中间件`,在调用`controller`之前，先调用`中间件`，确保验证通过了之后才调用`controller`。
+
+`./src/middleware/user.middleware.js`
+
+```js
+const userRegisterValidator = async (ctx, next) => {
+    const { user_name, password } = ctx.request.body
+    
+    if(!user_name || !password) {
+        ctx.body = {
+            code: '4000',
+            message: '用户名或密码为空',
+            result: null
+        }
+        return
+    }
+    
+    await next()
+}
+
+module.exports = {
+    userRegisterValidator
+}
+```
+
+`./src/router/user.route.js`
+
+```js
+const Router = require('@koa/router')
+
+const { register } = require('../controller/user.controller.js')
+const { userRegisterValidator } = require('../middleware/user.middleware')
+
+const router = new Router({
+  prefix: '/user'
+})
+
+// 在调用register之前，先调用userRegisterValidator
+router.post('/register', userRegisterValidator, register)
+
+
+module.exports = router.routes()
+```
+
+
+
+## 八、统一的错误处理函数
+
+​	为了提高代码的健壮性，除了编辑业务本身的处理逻辑以外，还应该在外层嵌套`try..catch`，以保证出现错误时及时错误对应的处理动作。
+
+​	使用`app.on`来监听错误事件，当我们`catch`到错误时，调用`ctx.app.emit`来触发错误事件。
+
+`./src/controller/user.controller.js`
+
+```js
+const UserService = require('../service/user.service')
+const { Service_Error } = require('../constants/error.type')
+
+class UserController {
+    async register(ctx, next) {
+        try {
+            const result = await UserService.createUser(ctx.request.body)
+            ctx.body = {
+                code: '2000',
+                result,
+                message: '恭喜！用户注册成功'
+            }
+        } catch (error) {
+            // 在catch中触发`error`事件
+            ctx.app.emit('error', {
+                errorObj: getErrorObj(Service_Error),
+                ctx,
+                error
+            })
+        }
+    }
+}
+```
+
+`./src/app/index.js`
+
+```js
+const Koa = require('koa')
+const { koaBody } = require('koa-body')
+
+const routes = require('../router')
+const errorHandler = require('./errorHandler')
+
+const app = new Koa()
+
+app.use(koaBody())
+app.use(routes)
+
+app.on('error', errorHandler) // 错误处理
+
+module.exports = app
+```
+
+`./src/app/errorHandler.js`
+
+```js
+module.exports = (opts) => {
+
+  const {
+    responseBody,
+    ctx,
+    error
+  } = opts
+  try {
+  
+    let status = 500
+    switch (responseBody.code) {
+      case '4000':
+        status = 400
+        break;
+      case '5000':
+        status = 400
+        break;
+      default:
+        status = 500
+        break;
+    }
+    ctx.status = status
+    ctx.body = responseBody
+    console.error('捕获到错误信息：', error)
+
+  } catch (err) {
+    console.error(opts)
+    console.error('错误处理函数出错：', err)
+  }
+}
+```
+
+
+
+## 九、加密
+
