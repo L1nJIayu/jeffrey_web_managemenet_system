@@ -1,7 +1,15 @@
 const UserService = require('../service/user.service')
-const { RES_CODE_SUCCESS, RES_CODE_ERROR } = require('../constants')
-const { Service_Error } = require('../constants/error.type')
+const { RES_CODE_SUCCESS } = require('../constants')
+const {
+  serviceError,
+  userLoginError,
+  paramsFormatError,
+  userNotFoundError,
+} = require('../constants/error.type')
 const { getResponseBody } = require('../utils')
+const { JWT_SECRET } = require('../config/default.config')
+
+const jwt = require('jsonwebtoken')
 
 class UserController {
 
@@ -15,7 +23,7 @@ class UserController {
       })
     } catch (error) {
       ctx.app.emit('error', {
-        responseBody: getResponseBody(Service_Error),
+        responseBody: getResponseBody(serviceError),
         ctx,
         error
       })
@@ -23,10 +31,23 @@ class UserController {
   }
 
   async login(ctx) {
-    ctx.body = {
-      code: 2000,
-      data: null,
-      message: "登录成功！",
+    try {
+      const { user_name } = ctx.request.body
+      const { password, ...userInfo } = await UserService.getUserInfo({ user_name })
+      const token = jwt.sign(userInfo, JWT_SECRET, { expiresIn: '30d'})
+      ctx.body = getResponseBody({
+        code: RES_CODE_SUCCESS,
+        message: '用户登录成功！',
+        result: {
+          token
+        }
+      })
+    } catch (error) {
+      ctx.app.emit('error', {
+        responseBody: getResponseBody(userLoginError),
+        ctx,
+        error
+      })
     }
   }
 
@@ -46,13 +67,61 @@ class UserController {
     }
   }
 
-  // 获取用户信息
-  async getUserByUserName(user_name) {
+  // 根据ID获取用户信息
+  async getUserInfo(ctx) {
+    console.log('userInfo', ctx.state.userInfo)
     try {
-      return await UserService.getUserByUserName(user_name)
-    } catch (err) {
-      console.error(err)
-      return Promise.reject(err)
+      const { id } = ctx.params
+      if(!id) {
+        return ctx.app.emit('error', {
+          ctx,
+          responseBody: getResponseBody(paramsFormatError),
+          error: new Error('ID为空')
+        })
+      }
+
+      const user = await UserService.getUserInfo({ id })
+      if(user) {
+        ctx.app.emit('success', {
+          ctx,
+          result: user
+        })
+      } else {
+        ctx.app.emit('error', {
+          ctx,
+          responseBody: getResponseBody(userNotFoundError)
+        })
+      }
+    } catch (error) {
+      ctx.app.emit('error', {
+        ctx,
+      })
+    }
+  }
+
+  // 修改密码
+  async modifyPassword(ctx) {
+    try {
+      const { id } = ctx.state.userInfo
+      const { password }  = ctx.request.body
+
+      if(!password) {
+        return ctx.app.emit('error',{
+          responseBody: getResponseBody(paramsFormatError),
+          ctx,
+          error: new Error('密码为空')
+        })
+        
+      }
+      
+      await UserService.modifyUserInfo({ id, password })
+      ctx.app.emit('success', { message: '密码修改成功', ctx})
+    } catch (error) {
+      ctx.app.emit('error',{
+        responseBody: getResponseBody(serviceError),
+        ctx,
+        error
+      })
     }
   }
 }

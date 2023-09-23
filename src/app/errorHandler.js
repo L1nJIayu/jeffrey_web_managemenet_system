@@ -1,10 +1,16 @@
+const { serviceError } = require('../constants/error.type')
 module.exports = (opts) => {
 
+
   const {
-    responseBody,
+    responseBody = serviceError,
     ctx,
-    error
+    error = new Error(responseBody?.message)
   } = opts
+
+  if(!ctx) {
+    return console.error('错误处理函数中未获得ctx，请检查')
+  }
   try {
   
     let status = 500

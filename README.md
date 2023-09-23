@@ -575,7 +575,7 @@ module.exports = router.routes()
 
 ```js
 const UserService = require('../service/user.service')
-const { Service_Error } = require('../constants/error.type')
+const { serviceError } = require('../constants/error.type')
 
 class UserController {
     async register(ctx, next) {
@@ -589,7 +589,7 @@ class UserController {
         } catch (error) {
             // 在catch中触发`error`事件
             ctx.app.emit('error', {
-                errorObj: getErrorObj(Service_Error),
+                errorObj: getErrorObj(serviceError),
                 ctx,
                 error
             })
@@ -654,5 +654,287 @@ module.exports = (opts) => {
 
 
 
-## 九、加密
+## 九、加密/解密
 
+### 依赖安装
+
+```shell
+pnpm i bcryptjs
+```
+
+### 密码加密
+
+对于加密的逻辑，可以写一个`中间件`去执行。加密时间点，可以放在参数验证成功之后。
+
+`./src/middleware/user.middleware.js`
+
+```js
+const bcrypt = require('bcryptjs')
+
+// 用户注册参数验证
+const userRegisterValidator = (ctx, next) => {...}
+// 密码加密
+const cryptPssword = (ctx, next) => {
+  const { password } = ctx.request.body
+  
+  const salt = bcrypt.genSaltSync(10)
+  const hash = bcrypt.hashSync(password, salt)
+  ctx.request.body.password = hash
+
+  await next()
+}
+
+module.exports = {
+  userRegisterValidator,
+  cryptPssword
+}
+```
+
+`./src/router/user.route.js`
+
+```js
+const Router = require('@koa/router')
+
+const { register } = require('../controller/user.controller.js')
+const { userRegisterValidator, cryptPassword } = require('../middleware/user.middleware')
+
+const router = new Router({
+  prefix: '/user'
+})
+
+// 加上密码加密的中间件
+router.post('/register', userRegisterValidator, cryptPassword, register)
+
+module.exports = router.routes()
+```
+
+#### 效果
+
+![image-20230921165959576](README.assets/image-20230921165959576.png)
+
+### 密码解密对比
+
+当用户登录时，需要先将用户传递的密码，与数据库中的密码进行比对，这个时候就需要对数据库的密码进行解密比对，比对成功以后，才允许用户登录。
+
+我们可以写一个针对密码验证的中间件`validatePassword`
+
+`./src/middleware/user.middleware.js`
+
+```js
+const UserService = require('../service/user.service')
+const {
+  paramsFormatError,
+  loginUserNameOrPasswordError,
+} = require('../constants/error.type')
+const { getResponseBody } = require('../utils')
+const bcrypt = require('bcryptjs')
+
+// 密码验证
+const validatePassword = async (ctx, next) => {
+  try {
+
+    const { user_name, password } = ctx.request.body
+    const user = await UserService.getUserInfo({ user_name })
+  	// 1.用户存在；2.解密后对比密码一致
+    if(user && bcrypt.compareSync(password, user.password)) {
+      await next()
+    } else {
+      return ctx.app.emit('error', {
+        responseBody: getResponseBody(loginUserNameOrPasswordError),
+        ctx,
+        error: new Error(loginUserNameOrPasswordError.message)
+      })
+    }
+    
+  } catch (error) {
+    return ctx.app.emit('error', {
+      responseBody: getResponseBody(userLoginError),
+      ctx,
+      error
+    })
+  }
+}
+
+module.exports = {
+  validatePassword
+}
+```
+
+
+
+## 十、颁发token
+
+token是由三部分组成的：
+
+1. header 头部信息
+
+   ```json
+   {
+       "typ": "JWT",
+       "alg": "HS256"
+   }
+   ```
+
+2. 载体payload，用于存放自定义的信息
+
+3. signature签证信息
+
+
+
+通常在我们登录成功以后，都需要生成一个token令牌返回，之后对于其他需要验证登录的接口，只需要用户在`请求头`中传递`Authorization`，验证通过以后，即可允许用户调用。
+
+### 依赖下载
+
+```shell
+pnpm i jsonwebtoken
+```
+
+### 登录功能
+
+使用`jsonwebtoken`颁发token，需要传`payload`和`密钥信息`
+
+`./.env`
+
+```
+# 登录密钥
+JWT_SECRET=123456
+```
+
+`./src/controller/user.controller.js`
+
+```js
+const UserService = require('../service/user.service')
+const { RES_CODE_SUCCESS } = require('../constants')
+const {
+  serviceError,
+  userLoginError,
+  paramsFormatError,
+  userNotFoundError,
+} = require('../constants/error.type')
+const { getResponseBody } = require('../utils')
+const { JWT_SECRET } = require('../config/default.config')
+
+const jwt = require('jsonwebtoken')
+
+class UserController {
+
+  async login(ctx) {
+    try {
+      const { user_name } = ctx.request.body
+      // 小技巧：将返回的用户信息，剔除password后保存在userInfo中
+      const { password, ...userInfo } = await UserService.getUserInfo({ user_name })
+      // expiresIn是过期时间
+      const token = jwt.sign(userInfo, JWT_SECRET, { expiresIn: '30d'})
+      ctx.body = getResponseBody({
+        code: RES_CODE_SUCCESS,
+        message: '用户登录成功！',
+        result: {
+          token
+        }
+      })
+    } catch (error) {
+      ctx.app.emit('error', {
+        responseBody: getResponseBody(userLoginError),
+        ctx,
+        error
+      })
+    }
+  }
+
+}
+
+module.exports = new UserController() // 暴露出去的应该是一个实例，使用时可直接结构获取里面的函数
+
+```
+
+#### 效果
+
+![image-20230923174458548](README.assets/image-20230923174458548.png)
+
+### token验证
+
+当我们调用其他需要登录验证的接口时，需要从请求头拿到token，对比验证后才继续执行后续操作。
+
+针对这个验证，可以写一个中间件`auth`
+
+`./src/middleware/auth.middleware.js`
+
+```js
+const jwt = require('jsonwebtoken')
+const { serviceError, tokenExpired, invalidToken } = require('../constants/error.type')
+const { getResponseBody } = require('../utils')
+const { JWT_SECRET } = require('../config/default.config')
+
+const auth = async (ctx, next) => {
+  try {
+    // 从请求头中获取authorization
+    const { authorization = '' } = ctx.request.header
+    // 需要切割`Bearer `
+    const token = authorization.replace('Bearer ', '')
+    // 根据token和密钥进行token验证
+    const userInfo = await jwt.verify(token, JWT_SECRET)
+    // 将获取到的userInfo保存到ctx的state状态，之后就可以直接从ctx.state去获取到用户信息了
+    ctx.state.userInfo = userInfo
+    await next()
+  } catch (error) {
+    // jwt.verify会抛出三种错误类型：
+    switch(error.name) {
+      // token过期
+      case 'TokenExpiredError':
+        return ctx.app.emit('error', {
+          responseBody: getResponseBody(tokenExpired),
+          ctx,
+          error
+        })
+      // token错误
+      case 'JsonWebTokenError':
+        return ctx.app.emit('error', {
+          responseBody: getResponseBody(invalidToken),
+          ctx,
+          error
+        })
+      // 其他情况
+      default:
+        return ctx.app.emit('error', {
+          responseBody: getResponseBody(serviceError),
+          ctx,
+          error
+        })
+    }
+  }
+}
+
+module.exports = {
+  auth
+}
+```
+
+`./src/router/user.route.js`
+
+```js
+const Router = require('@koa/router')
+
+const { auth } = require('../middleware/auth.middleware')
+
+const router = new Router({
+  prefix: '/user'
+})
+
+// 用户信息（根据ID获取）
+router.get('/:id', auth, (ctx) => {
+    const userInfo = ctx.state.userInfo
+    console.log('userInfo', userInfo)
+    // 这里就不写service逻辑了，主要演示一下可以做到验证token和从state中获取保存的payload
+    ctx.body = {
+        code: 2000,
+        result: userInfo,
+        message: '获取成功'
+    }
+})
+
+module.exports = router.routes()
+```
+
+#### 效果
+
+![image-20230923175532887](README.assets/image-20230923175532887.png)
