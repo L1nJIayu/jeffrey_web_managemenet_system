@@ -84,7 +84,9 @@ class UserController {
       if(user) {
         ctx.app.emit('success', {
           ctx,
-          result: user
+          responseBody: getResponseBody({
+            result: user
+          }),
         })
       } else {
         ctx.app.emit('error', {
@@ -115,7 +117,12 @@ class UserController {
       }
       
       await UserService.modifyUserInfo({ id, password })
-      ctx.app.emit('success', { message: '密码修改成功', ctx})
+      ctx.app.emit('success', {
+        ctx,
+        responseBody: getResponseBody({
+          message: '密码修改成功',
+        })
+      })
     } catch (error) {
       ctx.app.emit('error',{
         responseBody: getResponseBody(serviceError),

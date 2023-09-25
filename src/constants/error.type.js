@@ -39,6 +39,14 @@ module.exports = {
     code: '4001007',
     message: '用户不存在'
   },
+  fileUploadError: {
+    code: '5002001',
+    message: '文件上传失败'
+  },
+  getFileError: {
+    code: '5002002',
+    message: '文件获取失败'
+  },
   userLoginError: {
     code: '5001001',
     message: '登录失败'

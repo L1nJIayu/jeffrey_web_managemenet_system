@@ -941,5 +941,181 @@ module.exports = router.routes()
 
 
 
-### 十一、文件上传
+## 十一、图片上传/获取
 
+#### 图片上传
+
+`koa-body`本身即可支持文件上传，需要做一下配置
+
+##### 1.`koa-body`配置
+
+`./src/app/index.js`
+
+```js
+const path = require('path')
+
+const Koa = require('koa')
+const { koaBody } = require('koa-body')
+
+const app = Koa()
+
+const uploadDir = path.join(__dirname, '../uploadDir')	// 存放文件的目录
+
+app.use(KoaBody({
+    multipart: true,
+    formidable: {
+        uploadDir,
+        keepExtensions: true
+    }
+}))
+
+module.exports = app
+```
+
+补充了配置以后，即可编写接口
+
+##### 2.`File`模型
+
+`./src/model/file.model.js`
+
+```js
+const { DataTypes } = require('sequelize')
+const seq = require('../db/seq')
+
+const File = seq.define('file', {
+  file_name: DataTypes.CHAR,
+  original_file_name: DataTypes.CHAR,
+  mime_type: DataTypes.CHAR,
+  file_path: DataTypes.CHAR
+}, {
+  tableName: 't_files'
+})
+
+File.sync({
+  alter: true
+})
+
+module.exports = File
+```
+
+##### 3.`route`接口路由
+
+`./src/router/file.route.js`
+
+```js
+const KoaRouter = require('@koa/router')
+
+const { uploadFile } = require('../controller/file.controller')
+
+const router = new KoaRouter({
+  prefix: '/file'
+})
+
+router.post('/uploadImg', uploadFile)
+
+
+module.exports = router.routes()
+
+```
+
+##### 4.`controller`
+
+`./src/controller/file.controller.js`
+
+```js
+const FileService = require('../service/file.service')
+const { getResponseBody } = require('../utils')
+
+const { fileUploadError } = require('../constants/error.type')
+
+const uploadFile = async (ctx, next) => {
+  try {
+    const { file } = ctx.request.files
+    
+    const { file_name } = await FileService.createFile(file)
+
+    ctx.app.emit('success', {
+      ctx,
+      responseBody: getResponseBody({
+        message: '上传成功！',
+        result: file_name
+      })
+    })
+  } catch (error) {
+    ctx.app.emit('error', {
+      ctx,
+      error,
+      responseBody: getResponseBody(fileUploadError)
+    })
+  }
+
+}
+module.exports = {
+  uploadFile
+}
+```
+
+##### 5.`service`
+
+`./src/service/file.service.js`
+
+```js
+const File = require('../model/file.model')
+
+class FileService {
+  async createFile (file) {
+    const {
+      newFilename,
+      originalFilename,
+      mimetype,
+      filepath
+    } = file
+    return await File.create({
+      file_name: newFilename,
+      original_file_name: originalFilename,
+      mime_type: mimetype,
+      file_path: filepath,
+    })
+  }
+
+}
+
+module.exports = new FileService()
+```
+
+##### 6.效果
+
+![image-20230925184144990](README.assets/image-20230925184144990.png)
+
+![image-20230925184212400](README.assets/image-20230925184212400.png)
+
+#### 图片获取
+
+##### 1.`koa-static`依赖安装
+
+```shell
+pnpm i koa-static	# 用于搭建静态目录
+```
+
+##### 2.配置`koa-static`
+
+`./src/app/index.js`
+
+```js
+const path = require('path')
+
+const Koa = require('koa')
+const KoaStatic = require('koa-static')
+
+const uploadDir = path.join(__dirname, '../../upload')
+
+const app = new Koa()
+
+app.use(KoaStatic(uploadDir))	// 配置静态目录
+
+module.exports = app
+```
+
+##### 3.直接根据文件名即可访问
+
+![image-20230925184418063](README.assets/image-20230925184418063.png)
