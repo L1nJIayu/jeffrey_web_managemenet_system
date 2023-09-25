@@ -11,8 +11,8 @@ const File = seq.define('file', {
   tableName: 't_files'
 })
 
-File.sync({
-  alter: true
-})
+// File.sync({
+//   alter: true
+// })
 
 module.exports = File
