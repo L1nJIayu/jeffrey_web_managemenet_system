@@ -1,7 +1,7 @@
 const FileService = require('../service/file.service')
 const { getResponseBody } = require('../utils')
 
-const { fileUploadError, getFileError } = require('../constants/error.type')
+const { fileUploadError } = require('../constants/error.type')
 
 const uploadFile = async (ctx, next) => {
   try {

@@ -1,9 +1,9 @@
 
 const getResponseBody = (opts) => {
   const {
-    code=-1,
-    message='',
-    result=null
+    code,
+    message,
+    result
   } = opts
 
   return { code, message, result }

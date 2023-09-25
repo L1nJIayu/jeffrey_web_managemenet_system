@@ -47,6 +47,14 @@ module.exports = {
     code: '5002002',
     message: '文件获取失败'
   },
+  fileParamNotNullError: {
+    code: '4002001',
+    message: '文件不能为空'
+  },
+  mimeTypeError: {
+    code: '4002002',
+    message: '文件类型不支持'
+  },
   userLoginError: {
     code: '5001001',
     message: '登录失败'
