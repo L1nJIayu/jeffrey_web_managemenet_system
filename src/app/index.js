@@ -8,7 +8,7 @@ const routes = require('../router')	// 只需要引入一个模块即可
 const errorHandler = require('./errorHandler')
 const successHandler = require('./successHandler')
 
-const uploadDir = path.join(__dirname, '../../upload')
+const uploadDir = path.join(__dirname, '../../uploadDir')
 
 const app = new Koa()
 
