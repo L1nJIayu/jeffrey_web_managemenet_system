@@ -2,6 +2,25 @@
 
 
 
+## 大纲
+
+- 一、基本项目搭建
+- 二、路由配置
+- 三、控制器
+- 四、服务层 Service
+- 五、数据库
+- 六、模型 Model
+- 七、中间件
+- 八、统一的错误处理函数
+- 九、加密/解密
+- 十、颁发token
+- 十一、图片上传/获取
+- 十二、接口参数验证
+
+
+
+
+
 ## 一、基本项目搭建
 
 ### 依赖、项目搭建
@@ -1088,6 +1107,61 @@ module.exports = new FileService()
 ![image-20230925184144990](README.assets/image-20230925184144990.png)
 
 ![image-20230925184212400](README.assets/image-20230925184212400.png)
+
+##### 【补充内容】添加文件类型验证中间件
+
+`./src/middleware/file.middleware.js`
+
+```js
+const {
+  fileParamNotNullError,
+  mimeTypeError
+} = require('../constants/error.type')
+const { getResponseBody } = require('../utils')
+
+// 文件类型验证器
+const imgMimeTypeValidator = async (ctx, next) => {
+  try {
+    const { file } = ctx.request.files
+
+    if(!file) {
+      return ctx.app.emit('error', {
+        ctx,
+        error: new Error('文件参数为空！'),
+        responseBody: getResponseBody(fileParamNotNullError)
+      })
+    }
+
+    const supportedMimeType = [
+      'image/gif',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+    ]
+    if(supportedMimeType.includes(file.mimetype)) {
+      return await next()
+    } else {
+      return ctx.app.emit('error', {
+        ctx,
+        error: new Error('用户传的文件类型不支持！类型：' + file.mimetype),
+        responseBody: getResponseBody(mimeTypeError)
+      })
+    }
+
+  } catch (error) {
+    return ctx.app.emit('error', { ctx, error })
+  }
+
+}
+
+
+module.exports = {
+  imgMimeTypeValidator
+}
+```
+
+![image-20230925213211767](README.assets/image-20230925213211767.png)
 
 #### 图片获取
 
