@@ -1,3 +1,6 @@
+const { loginValidator } = require('../utils/ajv/user.validator')
+
+
 const UserService = require('../service/user.service')
 const {
   paramsFormatError,
@@ -14,8 +17,8 @@ const bcrypt = require('bcryptjs')
 const userRegisterValidator = async (ctx, next) => {
 
   const { user_name, password } = ctx.request.body
-  
-  if(!user_name || !password) {
+
+  if (!user_name || !password) {
     ctx.app.emit('error', {
       responseBody: getResponseBody(paramsFormatError),
       ctx,
@@ -24,7 +27,7 @@ const userRegisterValidator = async (ctx, next) => {
     return
   }
 
-  if(await UserService.getUserInfo({ user_name })) {
+  if (await UserService.getUserInfo({ user_name })) {
     ctx.app.emit('error', {
       responseBody: getResponseBody(userAlreadyExisted),
       ctx,
@@ -41,14 +44,25 @@ const userRegisterValidator = async (ctx, next) => {
 const userLoginValidator = async (ctx, next) => {
 
   const { user_name, password } = ctx.request.body
-  
-  if(!user_name || !password) {
-    return ctx.app.emit('error', {
-      responseBody: getResponseBody(loginUserNameOrPasswordNullError),
-      ctx,
-      error: new Error('用户名密码为空')
-    })
-  }
+
+  const result = loginValidator(ctx.request.body)
+  console.log('loginValidator', loginValidator.errors)
+
+  // if (!loginValidator(ctx.request.body)) {
+  //   return ctx.app.emit('error', {
+  //     responseBody: getResponseBody({...loginUserNameOrPasswordNullError, result: loginValidate.errors}),
+  //     ctx,
+  //     error: new Error('用户名密码为空')
+  //   })
+  // }
+
+  // if(!user_name || !password) {
+  //   return ctx.app.emit('error', {
+  //     responseBody: getResponseBody(loginUserNameOrPasswordNullError),
+  //     ctx,
+  //     error: new Error('用户名密码为空')
+  //   })
+  // }
 
   await next()
 }
@@ -57,8 +71,8 @@ const userLoginValidator = async (ctx, next) => {
 const cryptPassword = async (ctx, next) => {
   const { password } = ctx.request.body
 
-  if(!password) {
-    return ctx.app.emit('error',{
+  if (!password) {
+    return ctx.app.emit('error', {
       responseBody: getResponseBody(paramsFormatError),
       ctx,
       error: new Error(paramsFormatError.message)
@@ -79,8 +93,8 @@ const validatePassword = async (ctx, next) => {
     const { user_name, password } = ctx.request.body
 
     const user = await UserService.getUserInfo({ user_name })
-  
-    if(user && bcrypt.compareSync(password, user.password)) {
+
+    if (user && bcrypt.compareSync(password, user.password)) {
       await next()
     } else {
       return ctx.app.emit('error', {
@@ -89,7 +103,7 @@ const validatePassword = async (ctx, next) => {
         error: new Error(loginUserNameOrPasswordError.message)
       })
     }
-    
+
   } catch (error) {
     return ctx.app.emit('error', {
       responseBody: getResponseBody(userLoginError),
