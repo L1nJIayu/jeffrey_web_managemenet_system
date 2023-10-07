@@ -1,6 +1,8 @@
 const User = require('../model/user.model')
 const { Op } = require('sequelize')
 
+const toCamelCase = require('camelcase-keys')
+
 class UserService {
   
   async createUser(params) {
@@ -10,17 +12,9 @@ class UserService {
   }
 
   async getUserList(params) {
-    const result = await User.findAll({
-      attributes: [
-        'id',
-        ['user_name', 'userName'],
-        ['nick_name', 'nickName'],
-        ['is_deleted', 'isDeleted'],
-        ['createdAt', 'createTime']
-      ]
-    })
+    const result = await User.findAll()
     console.log(JSON.stringify(result, null, 4))
-    return result
+    return toCamelCase(result, { deep: true })
   }
 
   async getUserInfo(params) {
