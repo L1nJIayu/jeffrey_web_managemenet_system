@@ -12,9 +12,13 @@ class UserService {
   }
 
   async getUserList(params) {
-    const result = await User.findAll()
+    const result = await User.findAll({
+      where: {
+        is_deleted: 0
+      }
+    })
     console.log(JSON.stringify(result, null, 4))
-    return toCamelCase(result, { deep: true })
+    return result
   }
 
   async getUserInfo(params) {
@@ -25,7 +29,9 @@ class UserService {
       nick_name
     } = params
 
-    let whereOpt = {}
+    let whereOpt = {
+      is_deleted: 0
+    }
     
     id          && Object.assign(whereOpt, { id })
     user_name   && Object.assign(whereOpt, { user_name })
@@ -56,6 +62,14 @@ class UserService {
     })
     console.log(JSON.stringify(user, null, 4))
     return user
+  }
+
+  async deleteUser(id) {
+    return await User.update({
+      is_deleted: 1
+    }, {
+      where: { id }
+    })
   }
 }
 

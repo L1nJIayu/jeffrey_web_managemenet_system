@@ -1,3 +1,6 @@
+
+const toCamelCase = require('camelcase-keys')
+
 const UserService = require('../service/user.service')
 const { RES_CODE_SUCCESS } = require('../constants')
 const {
@@ -51,15 +54,16 @@ class UserController {
     }
   }
 
-  // 获取用户列表
   async getUserList(ctx) {
     try {
       console.log(ctx.query)
-      const result = await UserService.getUserList(ctx.query)
+      const originalResult = await UserService.getUserList(ctx.query)
+
+      const result = originalResult.map(item => item.dataValues)
 
       ctx.body = {
         code: RES_CODE_SUCCESS,
-        data: result,
+        data: toCamelCase(result, { deep: true }),
         message: '查询成功'
       }
     } catch (err) {
@@ -101,7 +105,6 @@ class UserController {
     }
   }
 
-  // 修改密码
   async modifyPassword(ctx) {
     try {
       const { id } = ctx.state.userInfo
@@ -130,6 +133,37 @@ class UserController {
         error
       })
     }
+  }
+
+  async deleteUser(ctx) {
+    const id = parseInt(ctx.request.params.id)
+    
+    if(!id) {
+      return ctx.app.emit('error', {
+        ctx,
+        error: new Error('用户ID不能为空')
+      })
+    }
+
+    const user = await UserService.getUserInfo({ id })
+    if(!user) {
+      return ctx.app.emit('error', {
+        ctx,
+        responseBody: getResponseBody(userNotFoundError)
+      })
+    } else {
+
+      await UserService.deleteUser(id)
+
+      ctx.app.emit('success', {
+        ctx,
+        responseBody: getResponseBody({
+          message: '删除成功！'
+        })
+      })
+      
+    }
+    
   }
 }
 

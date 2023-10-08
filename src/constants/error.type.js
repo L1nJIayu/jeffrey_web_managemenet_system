@@ -17,7 +17,7 @@ module.exports = {
   },
   userAlreadyExisted: {
     code: '4001001',
-    message: '用户名已存在'
+    message: '此用户名已注册，请使用其他用户名'
   },
   loginUserNameOrPasswordError: {
     code: '4001003',

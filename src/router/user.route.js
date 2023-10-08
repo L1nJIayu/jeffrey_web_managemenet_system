@@ -1,6 +1,6 @@
 const Router = require('@koa/router')
 
-const { login, register, getUserList, getUserInfo, modifyPassword } = require('../controller/user.controller.js')	// 引用时直接解构获取处理函数
+const { login, register, getUserList, getUserInfo, modifyPassword, deleteUser } = require('../controller/user.controller.js')	// 引用时直接解构获取处理函数
 
 const { userRegisterValidator, cryptPassword, userLoginValidator, validatePassword } = require('../middleware/user.middleware')
 const { auth } = require('../middleware/auth.middleware')
@@ -24,5 +24,8 @@ router.get('/:id', auth, getUserInfo)
 
 // 修改密码
 router.patch('/modifyPassword', auth, cryptPassword, modifyPassword)
+
+// 删除
+router.delete('/delete/:id', auth, deleteUser)
 
 module.exports = router.routes()
