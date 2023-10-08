@@ -3,6 +3,8 @@ const { Op } = require('sequelize')
 
 const toCamelCase = require('camelcase-keys')
 
+const seq = require('../db/seq')
+
 class UserService {
   
   async createUser(params) {
@@ -65,11 +67,12 @@ class UserService {
   }
 
   async deleteUser(id) {
-    return await User.update({
-      is_deleted: 1
-    }, {
-      where: { id }
-    })
+    return seq.query(`
+      UPDATE t_user 
+      SET is_deleted = 1 
+      WHERE
+        id = ${ id }
+    `)
   }
 }
 
