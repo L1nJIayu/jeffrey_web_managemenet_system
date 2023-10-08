@@ -1,7 +1,7 @@
 {
-  "name": "jeffrey_web_management_system",
+  "name": "jeffrey_web_management_system_backend",
   "version": "1.0.0",
-  "description": "后台管理",
+  "description": "后台管理系统-后端服务",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon ./src/main.js",
@@ -9,7 +9,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@koa/router": "^12.0.0",
     "ajv": "^8.12.0",
